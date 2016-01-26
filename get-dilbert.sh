@@ -36,6 +36,15 @@
 
 #!/bin/bash
 
+URL_HTML_ROOT="http://dilbert.com/strip"
+URL_IMG_ROOT="http://assets.amuniversal.com"
+
+function PMkdir() {
+	if [ ! -d "$1" ] ; then
+		mkdir -p "$1"
+	fi
+}
+
 DT_FIRST='890416'
 
 i=0
@@ -45,21 +54,26 @@ while [ $bDone != 1 ] ; do
 	Y=${DT:0:2}
 	M=${DT:2:2}
 	D=${DT:4:2}
-	echo "$Y $M $D"
-	if [ ! -d html/$Y/$M ] ; then
-		mkdir -p html/$Y/$M
-	fi
-	if [ ! -f html/$Y/$M/$DT.html ] ; then
-		URL="http://dilbert.com/strip/$Y-$M-$D"
-		HTML="html/$Y/$M/$DT.html"
+	IMG_DIR="img/$Y/$M"
+	TMP_DIR=tmp
+	TXT_DIR="$IMG_DIR"
+	TXT="$TXT_DIR/$DT.txt"
 
-		wget -O "$HTML" http://dilbert.com/strip/$Y-$M-$D $URL
+	PMkdir "$IMG_DIR"
+	PMkdir "$TMP_DIR"
 
-		IMG=$(grep -o -m 1 -e 'http://assets.amuniversal.com/[0-9a-f]\+' "$HTML")
-		wget --referer="$URL" -P img/$Y/$M $IMG 2> "tmp/$DT.out"
-		IMG_OUT=$(grep -o -e "image/[a-z]\+" "tmp/$DT.out")
-		mv img/$Y/$M/${IMG##*/} img/$Y/$M/$DT'.'${IMG_OUT#*/}
-		grep -o -m 1 -e 'data-description="[^\"]\+"' "$HTML" > img/$Y/$M/$DT'.txt'
+	if [ ! -f "$TXT" ] ; then
+		URL_HTML="$URL_HTML_ROOT/$Y-$M-$D"
+		HTML="$TMP_DIR/$DT.html"
+		WGET_IMG_OUT="$TMP_DIR/$DT.out"
+
+		wget -O "$HTML" $URL_HTML
+
+		IMG=$(grep -o -m 1 -e "$URL_IMG_ROOT"'/[0-9a-f]\+' "$HTML")
+		wget --referer="$URL" -P "$IMG_DIR" $IMG 2> "$WGET_IMG_OUT"
+		IMG_OUT=$(grep -o -e "image/[a-z]\+" "$WGET_IMG_OUT")
+		mv "$IMG_DIR/${IMG##*/}" "$IMG_DIR/$DT"'.'"${IMG_OUT#*/}"
+		sed -n -e 's|.\+data-description="\([^"]\+\)".\+|\1|p' "$HTML" | recode html..ascii > "$TXT"
 	fi
 	if [ $DT_FIRST == $DT ] ; then
 		bDone=1
